@@ -8,6 +8,12 @@ const TodoSchema = new mongoose.Schema({
   completed: {
     type: Boolean,
     required: true,
+  },
+  picture: {
+    type: String,
+  },
+  deletePicture: {
+    type:String,
   }
 })
 

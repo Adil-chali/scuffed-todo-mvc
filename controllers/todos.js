@@ -8,15 +8,22 @@ module.exports = {
             res.render('todos.ejs', {todos: todoItems, left: itemsLeft})
         }catch(err){
             console.log(err)
+            res.status(500).send('Error getting todos');
         }
     },
     createTodo: async (req, res)=>{
         try{
-            await Todo.create({todo: req.body.todoItem, completed: false})
+            await Todo.create({
+                todo: req.body.todoItem,
+                completed: false,
+                picture: req.body.pictureUrl,
+                deletePicture: req.body.deleteImageUrl,
+                })
             console.log('Todo has been added!')
             res.redirect('/todos')
         }catch(err){
             console.log(err)
+            res.status(500).send('Error creating todo');
         }
     },
     markComplete: async (req, res)=>{
@@ -42,7 +49,14 @@ module.exports = {
         }
     },
     deleteTodo: async (req, res)=>{
-        console.log(req.body.todoIdFromJSFile)
+        const todo = await Todo.findById(req.body.todoIdFromJSFile);
+        if (todo.deletePicture){
+            fetch(todo.deletePicture, {
+          method: 'GET',
+        }).catch(err=>console.error("image delete failed",err)
+        )
+        console.log('Image deletion in progress (running in background)');
+    }
         try{
             await Todo.findOneAndDelete({_id:req.body.todoIdFromJSFile})
             console.log('Deleted Todo')

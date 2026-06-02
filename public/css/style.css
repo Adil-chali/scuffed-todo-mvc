@@ -8,3 +8,6 @@ h1{
 .not{
     text-decoration: underline;
 }
+img{
+    width: 50px;
+}
