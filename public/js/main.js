@@ -13,11 +13,11 @@ Array.from(deleteBtn).forEach((el)=>{
 })
 
 Array.from(todoItem).forEach((el)=>{
-    el.addEventListener('click', markComplete)
+    el.addEventListener('click', toggleComplete)
 })
 
 Array.from(todoComplete).forEach((el)=>{
-    el.addEventListener('click', markIncomplete)
+    el.addEventListener('click', toggleComplete)
 })
 
 async function deleteTodo(){
@@ -37,10 +37,10 @@ async function deleteTodo(){
     }
 }
 
-async function markComplete(){
+async function toggleComplete(){
     const todoId = this.parentNode.dataset.id
     try{
-        const response = await fetch('todos/markComplete', {
+        const response = await fetch('todos/toggleComplete', {
             method: 'put',
             headers: {'Content-type': 'application/json'},
             body: JSON.stringify({
@@ -54,34 +54,48 @@ async function markComplete(){
         console.log(err)
     }
 }
+let hideTimeoutId = null;
 
-async function markIncomplete(){
-    const todoId = this.parentNode.dataset.id
-    try{
-        const response = await fetch('todos/markIncomplete', {
-            method: 'put',
-            headers: {'Content-type': 'application/json'},
-            body: JSON.stringify({
-                'todoIdFromJSFile': todoId
-            })
-        })
-        const data = await response.json()
-        console.log(data)
-        location.reload()
-    }catch(err){
-        console.log(err)
-    }
+function setStatus(element, statusClass, message) {
+
+  element.classList.remove('loading', 'done-image', 'failed-image', 'hidden');
+
+  element.classList.add(statusClass);
+  element.textContent = message;
+  
+  if (hideTimeoutId) {
+    clearTimeout(hideTimeoutId);
+    hideTimeoutId = null;
+  }
+  
+
+  if (statusClass !== 'loading') {
+    hideTimeoutId = setTimeout(() => {
+      element.classList.add('hidden');
+      hideTimeoutId = null;
+    }, 10000);
+  }
 }
 
+function uploadingImg() {
+  setStatus(uploadStatusDiv, 'loading', 'Uploading image...');
+}
+
+function imgUploaded() {
+  setStatus(uploadStatusDiv, 'done-image', 'Image uploaded! ✓');
+}
+
+function failedImageUpload() {
+  setStatus(uploadStatusDiv, 'failed-image', 'Upload failed. Todo will be saved without image.');
+}
+
+//big thanks to https://github.com/FrantaBOT
 
 fileInput.addEventListener('change', async (e) => {
   const file = e.target.files[0];
   if (!file) return;
-  
-  uploadStatusDiv.style.display = 'block';
-  uploadStatusDiv.textContent = 'Uploading image...';
-  uploadStatusDiv.style.color = 'orange';
-  
+  uploadingImg()
+
   uploadPromise = (async () => {
     const formData = new FormData();
     formData.append('file', file);
@@ -95,21 +109,15 @@ fileInput.addEventListener('change', async (e) => {
       const data = await response.json();  
       console.log(data);
           
-      let = uploadedImageUrl =data.link
-      let = deleteImageUrl =`https://femboy.beauty/api/delete?key=${data.key}`
+      uploadedImageUrl =data.link
+      deleteImageUrl =`https://femboy.beauty/api/delete?key=${data.key}`
       
-      uploadStatusDiv.textContent = 'Image uploaded! ✓';
-      uploadStatusDiv.style.color = 'green';
-      
-      setTimeout(() => {
-        uploadStatusDiv.style.display = 'none';
-      }, 10000);
+      imgUploaded()
       
       return {uploadedImageUrl,deleteImageUrl}
     } catch (err) {
       console.error('Upload failed:', err);
-      uploadStatusDiv.textContent = 'Upload failed. Todo will be saved without image.';
-      uploadStatusDiv.style.color = 'red';
+      failedImageUpload() 
       uploadedImageUrl = null;
       return null;
     }
@@ -121,13 +129,12 @@ form.addEventListener('submit', async (e) => {
   e.preventDefault();
   
   const todoText = todoInput.value.trim();
-
   submitBtn.disabled = true;
   loadingDiv.style.display = 'block';
   
+
   let imageUrl = null;
   let deleteImageUrl = null;
-  
  
   if (uploadPromise) {
     const result = await uploadPromise;
@@ -135,30 +142,23 @@ form.addEventListener('submit', async (e) => {
     deleteImageUrl = result.deleteImageUrl;
   }
   
-  
   const formData = new URLSearchParams();
   formData.append('todoItem', todoText);
   if (imageUrl) {
     formData.append('pictureUrl', imageUrl);
-  }
-  if (deleteImageUrl) {
     formData.append('deleteImageUrl', deleteImageUrl);
   }
-  
+
   try {
     const response = await fetch('/todos/createTodo', {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
+        'Content-Type': 'application/json',
       },
       body: formData,
     });
-    
-    if (response.redirected) {
-      window.location.href = response.url;
-    } else {
-      window.location.href = '/todos';
-    }
+    location.reload()
+
   } catch (err) {
     console.error('Todo creation failed:', err);
     alert('Failed to create todo');
